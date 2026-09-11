@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "name": "ESP32 LoRa (PlatformIO)",
+      "path": "Esp32_Lora"
+    },
+    {
+      "name": "Gateway Raspberry Pi 5",
+      "path": "Gateway Raspberry Pi 5"
+    },
+    {
+      "name": "Web App (Next.js)",
+      "path": "web-app"
+    },
+    {
+      "name": "Docs",
+      "path": "docs"
+    }
+  ],
+  "settings": {}
+}

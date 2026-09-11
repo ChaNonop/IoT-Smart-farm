@@ -1,0 +1,5 @@
+adafruit/Adafruit VEML7700 Library @ ~2.1.6
+bblanchon/ArduinoJson @ ~7.4.3
+adafruit/DHT sensor library @ ~1.4.7
+jgromes/RadioLib @ ~7.7.1
+adafruit/RTClib @ ~2.1.4

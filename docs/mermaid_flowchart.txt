@@ -1,0 +1,40 @@
+flowchart TD
+    Start([ESP32 ตื่นจาก Deep Sleep<br/>โดยสัญญาณจาก RTC Wakeup]) --> ReadBat[1. อ่านระดับแรงดันแบตเตอรี่]
+
+    ReadBat --> CheckBatCutoff{แรงดันแบตเตอรี่<br/>วิกฤตหรือไม่? < 10%}
+    
+    %% กรณีแบตเตอรี่วิกฤต
+    CheckBatCutoff -- ใช่ (Critical) --> LogCrit[บันทึกสถานะ Low Battery ลง RTC Mem]
+    LogCrit --> SetLongSleep[ตั้งค่า RTC Alarm หลับยาวพิเศษ<br/>เช่น 30-60 นาที เพื่อรอชาร์จไฟ]
+    SetLongSleep --> SleepCrit[เข้าสู่ Deep Sleep]
+
+    %% กรณีแบตเตอรี่ปกติ
+    CheckBatCutoff -- ไม่ใช่ (Normal/Low) --> EvalInterval[ประเมินรอบเวลาตื่นรอบถัดไป<br/>- แบต > 30%: หลับ 5 นาที<br/>- แบต 10-30%: หลับ 10 นาที]
+
+    EvalInterval --> ReadSensors[2. อ่านค่าเซ็นเซอร์หลัก<br/>วนลูปอ่าน 10 ตัวอย่าง พร้อมคำนวณค่าเฉลี่ย]
+    
+    ReadSensors --> CheckAnom{ตรวจพบความผิดปกติ<br/>หรือถึงรอบส่งข้อมูลปกติ?}
+
+    %% ข้อมูลปกติ ไม่ถึงรอบส่ง
+    CheckAnom -- ปกติ และยังไม่ถึงรอบส่ง --> BufferData[บันทึกค่าลง Local/RTC Buffer]
+    BufferData --> ConfigRTC[3. ตั้งค่าเวลาปลุกบน RTC DS3231<br/>ตามค่า Interval ที่คำนวณไว้]
+
+    %% พบความผิดปกติ หรือถึงรอบส่ง
+    CheckAnom -- ผิดปกติ หรือถึงรอบส่ง --> EnableWiFi[4. เปิดโมดูลและเชื่อมต่อ Wi-Fi]
+
+    EnableWiFi --> CheckWiFi{เชื่อมต่อ Wi-Fi สำเร็จ?}
+    
+    CheckWiFi -- ไม่สำเร็จ (Timeout) --> SaveOffline[บันทึกข้อมูลและ Log ความผิดปกติ<br/>ลง Flash/LittleFS สำหรับส่งรอบถัดไป]
+    SaveOffline --> ConfigRTC
+
+    CheckWiFi -- สำเร็จ --> ConnectMQTT[เชื่อมต่อ MQTT Broker]
+    ConnectMQTT --> PublishData[Publish ข้อมูลเซ็นเซอร์ + Battery + Log<br/>ไปที่ MQTT Topic]
+    PublishData --> IngestBackend[(Supabase Data Pipeline & Web Dashboard)]
+    PublishData --> DisconnectNet[ตัดการเชื่อมต่อ MQTT และสั่งปิด Wi-Fi]
+    DisconnectNet --> ConfigRTC
+
+    %% ขั้นตอนการเตรียมหลับ
+    ConfigRTC --> SetWakeupPin[กำหนด GPIO ขา Interrupt รับสัญญาณปลุกจาก RTC]
+    SetWakeupPin --> EnterDeepSleep([เข้าสู่ Deep Sleep โหมดประหยัดพลังงาน])
+
+    EnterDeepSleep -.->|เมื่อถึงเวลา RTC Alarm ปลุกสัญญาณ| Start
