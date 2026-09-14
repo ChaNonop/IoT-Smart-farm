@@ -8,7 +8,6 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                 "D:/1.MyProject/IoT smart farm Monitoring using Solar and LoRa Technology/Esp32_Lora/.pio/libdeps/featheresp32/Adafruit VEML7700 Library",
                 "D:/1.MyProject/IoT smart farm Monitoring using Solar and LoRa Technology/Esp32_Lora/.pio/libdeps/featheresp32/RadioLib/src",
                 "D:/1.MyProject/IoT smart farm Monitoring using Solar and LoRa Technology/Esp32_Lora/.pio/libdeps/featheresp32/ArduinoJson/src",
@@ -246,6 +245,7 @@
                 "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/USB/src",
                 "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/Update/src",
                 "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src",
+                "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                 "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src",
                 "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFiProv/src",
                 ""
@@ -253,7 +253,6 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                     "D:/1.MyProject/IoT smart farm Monitoring using Solar and LoRa Technology/Esp32_Lora/.pio/libdeps/featheresp32/Adafruit VEML7700 Library",
                     "D:/1.MyProject/IoT smart farm Monitoring using Solar and LoRa Technology/Esp32_Lora/.pio/libdeps/featheresp32/RadioLib/src",
                     "D:/1.MyProject/IoT smart farm Monitoring using Solar and LoRa Technology/Esp32_Lora/.pio/libdeps/featheresp32/ArduinoJson/src",
@@ -491,6 +490,7 @@
                     "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/USB/src",
                     "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/Update/src",
                     "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src",
+                    "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                     "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFiClientSecure/src",
                     "C:/Users/My-com/.platformio/packages/framework-arduinoespressif32/libraries/WiFiProv/src",
                     ""

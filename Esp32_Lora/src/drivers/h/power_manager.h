@@ -4,7 +4,12 @@
 class PowerManager {
 public:
     void begin();
-    bool state_SensorPower();   // ดึง GPIO LOW เพื่อเปิด P-MOSFET
+    void enableSensorPower();
+    void disableSensorPower();
+    
     float readBatteryVoltage();
+    uint16_t readBatteryMilliVolts();
+    
+    bool isBatteryCritical(float voltage);
     bool isBatteryLow(float voltage);
 };

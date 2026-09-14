@@ -1,0 +1,68 @@
+flowchart TD
+    %% ===================================================
+    %% Smart Farm Production Flowchart (LoRa + RPi5 + Supabase)
+    %% ===================================================
+
+    subgraph ESP32_Node ["1. ฝั่งแปลงเกษตร: ESP32 + LoRa Sensor Node (Solar + Battery LiFePO4)"]
+        Start([ESP32 ตื่นจาก Deep Sleep<br/>โดยสัญญาณ Interrupt จาก RTC DS3231]) --> ReadBat[1. เปิดอ่านค่าแรงดันแบตเตอรี่ LiFePO4]
+        
+        ReadBat --> CheckBatCutoff{แรงดันแบตเตอรี่<br/>วิกฤตหรือไม่? < 10% หรือ < 3.0V}
+        
+        %% แบตเตอรี่วิกฤต
+        CheckBatCutoff -- วิกฤต (Critical) --> LogCrit[บันทึกสถานะ Low Battery ลง RTC RAM]
+        LogCrit --> SetLongSleep[ตั้งค่า RTC Alarm หลับยาว 30-60 นาที<br/>เพื่อรอโซลาร์เซลล์ชาร์จไฟ]
+        SetLongSleep --> SleepCrit[เข้าสู่ Deep Sleep ทันที]
+
+        %% แบตเตอรี่ปกติ
+        CheckBatCutoff -- ปกติ --> EvalInterval[ประเมินรอบเวลาตื่นรอบถัดไป<br/>- แบต > 30%: หลับ 5 นาที<br/>- แบต 10-30%: หลับ 10 นาที]
+        EvalInterval --> PowerGateON[2. เปิด P-MOSFET Load Switch<br/>จ่ายไฟเลี้ยง 3.3V/5V ให้เซนเซอร์ทั้งหมด]
+        PowerGateON --> SensorWarmup[หน่วงเวลา 150ms ให้เซนเซอร์และบัส RS485 เสถียร]
+        SensorWarmup --> ReadSensors[3. อ่านค่าเซนเซอร์ 4 ชนิด:<br/>- DHT22 (Temp/Humid)<br/>- NPK Sensor (RS485 Modbus)<br/>- Thermocouple (Temp แบตเตอรี่)<br/>- VEML7700 (แสง Lux)]
+        ReadSensors --> PowerGateOFF[4. ปิด P-MOSFET ทันที<br/>เพื่อตัดไฟเลี้ยงเซนเซอร์ ไม่ให้กินไฟ]
+        
+        PowerGateOFF --> PackBinary[5. บีบอัดข้อมูลเป็น Binary Struct ขนาดเล็ก<br/>MAC + Voltage + Temp + Humid + NPK + Light ~20 Bytes]
+        PackBinary --> TransmitLoRa[6. เปิดโมดูล LoRa SX1276/1278<br/>ยิงแพ็กเก็ต LoRa 868/915MHz<br/>ใช้เวลาส่งสั้นมาก ~100ms]
+        TransmitLoRa --> PutLoRaSleep[สั่งโมดูล LoRa เข้าโหมด Sleep]
+        PutLoRaSleep --> ConfigRTC[7. ตั้งเวลาปลุกรอบถัดไปบน RTC DS3231<br/>ตาม Interval ที่คำนวณไว้]
+        ConfigRTC --> SetWakePin[กำหนด GPIO Interrupt รับสัญญาณ SQW จาก RTC]
+        SetWakePin --> EnterDeepSleep([เข้าสู่ Deep Sleep ประหยัดพลังงานระดับไมโครแอมป์])
+    end
+
+    %% สัญญาณไร้สายระยะไกล
+    TransmitLoRa -.->|คลื่นวิทยุ LoRa ไกล 1-5 km| LoRaReceive
+
+    subgraph Gateway_RPi5 ["2. ฝั่งสถานีกลาง: Edge Gateway (Raspberry Pi 5)"]
+        LoRaReceive[โมดูลรับ LoRa บน RPi 5 รับสัญญาณ Packet] --> SerialRead[Gateway Service Node.js อ่านข้อมูลจาก Serial/UART]
+        SerialRead --> ParseBinary[ถอดรหัส Binary Struct เป็น JSON Object พร้อมแนบ RSSI/SNR]
+        
+        ParseBinary --> CheckInternet{เชื่อมต่ออินเทอร์เน็ตได้หรือไม่?}
+        CheckInternet -- เน็ตหลุด/มีปัญหา --> StoreLocal[บันทึกลง Local SQLite Spooler<br/>บน Raspberry Pi ชั่วคราว]
+        StoreLocal -.->|เมื่ออินเทอร์เน็ตกลับมา| ForwardData
+        
+        CheckInternet -- เน็ตปกติ --> ForwardData[ส่งข้อมูลขึ้น Cloud<br/>ผ่าน HTTP POST พร้อมแนบ X-API-Key]
+    end
+
+    %% การส่งขึ้น Cloud
+    ForwardData --> CloudAPI
+
+    subgraph Cloud_Backend ["3. ฝั่ง Cloud & Web Application (Next.js + Supabase)"]
+        CloudAPI[Next.js API Route: /api/telemetry] --> ValidatePayload{ตรวจสอบ Secret Key<br/>และโครงสร้างด้วย Zod}
+        
+        ValidatePayload -- ผ่าน --> SaveDB[(Supabase PostgreSQL: ตาราง telemetry_logs)]
+        ValidatePayload -- ผ่าน --> CheckAlert{อุณหภูมิแบตเตอรี่ > 45°C<br/>หรือแบตเตอรี่ < 3.3V ?}
+        
+        CheckAlert -- พบความผิดปกติ --> SendAlert[ส่งอีเมลแจ้งเตือนทันทีผ่าน Resend<br/>หรือส่งข้อความเข้า LINE Notify / LINE OA]
+        CheckAlert -- ปกติ --> PassNormal[ไม่มีการแจ้งเตือนฉุกเฉิน]
+        
+        %% Realtime Mechanism
+        SaveDB ==>|Postgres Changes Event Realtime WebSocket| PushRealtime[Supabase Realtime Engine<br/>Broadcast ข้อมูลใหม่ทันทีโดยไม่ต้อง Poll]
+    end
+
+    subgraph Dashboard_Client ["4. หน้าจอผู้ใช้งาน: Next.js Web Dashboard"]
+        PushRealtime ==>|WebSocket Stream| WebUI[หน้าเว็บ Dashboard รับข้อมูล Real-time]
+        WebUI --> UpdateCards[อัปเดตการ์ดสถานะเซนเซอร์ล่าสุดทันที]
+        WebUI --> UpdateCharts[อัปเดตกราฟ Dynamic Recharts ทันที]
+    end
+
+    %% ลูปการตื่นของ ESP32
+    EnterDeepSleep -.->|เมื่อถึงเวลา RTC ปลุก| Start
